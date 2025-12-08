@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Advanced BB84 Simulator</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: #FAFAFA;
+      color: #333;
+    }
+
+    h1 {
+      margin: 10px;
+      font-size: 1.5em;
+    }
+
+    /* Main container with two columns */
+    #main-container {
+      display: flex;
+      flex-direction: row;
+      height: calc(100vh - 60px); /* Adjust if needed */
+    }
+
+    /* Left panel: contains controls, rows (Alice, Bob, etc.), and console */
+    #left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      overflow-y: auto; /* If content exceeds, vertical scrollbar */
+    }
+
+    /* Right panel: stats and final key */
+    #right-panel {
+      width: 350px;
+      border-left: 1px solid #CCC;
+      padding: 10px;
+      overflow-y: auto; /* If needed */
+    }
+
+    /* Controls section (number of photons, button, etc.) */
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 10px;
+      background: #FFF;
+      padding: 10px;
+      border: 1px solid #CCC;
+      border-radius: 5px;
+    }
+    #controls label {
+      margin-right: 5px;
+      font-weight: bold;
+      font-size: 0.9em;
+    }
+    #controls input[type="number"] {
+      width: 70px;
+      margin-right: 10px;
+    }
+    #controls input[type="checkbox"] {
+      margin-left: 10px;
+      margin-right: 5px;
+    }
+    /* Removed styles for .slider-container and input[type="range"] */
+    /* #controls .slider-container {
+      display: flex;
+      align-items: center;
+      margin-left: 10px;
+    }
+    #controls input[type="range"] {
+      margin: 0 5px;
+    } */
+    #controls button {
+      margin-left: 10px;
+      padding: 5px 15px;
+      cursor: pointer;
+    }
+
+    /* Title of a "row" (e.g., Alice, Bob, etc.) */
+    .row {
+      margin-bottom: 10px;
+    }
+    .row-title {
+      font-weight: bold;
+      width: 80px;
+      font-size: 1em;
+      margin-bottom: 5px;
+    }
+
+    /* Scrollable horizontal container for "photons" */
+    .row-container {
+      border: 1px solid #CCC;
+      border-radius: 5px;
+      padding: 5px;
+      overflow-x: auto; 
+      white-space: nowrap; /* to force inline display */
+      background-color: #FFF;
+      min-height: 60px;
+    }
+
+    /* Small block representing a column (base + state) for each photon */
+    .photon-box {
+      display: inline-block;
+      width: 40px;    /* Fixed width for each photon */
+      text-align: center;
+      margin: 0 2px;
+    }
+    .basis-label {
+      font-size: 10px;
+      line-height: 12px;
+    }
+    .state-label {
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 18px;
+    }
+
+    /* Console / log */
+    #console {
+      margin-top: 10px;
+    }
+    #log-label {
+      font-style: italic;
+      margin-bottom: 5px;
+    }
+    /* Remplacement de la textarea par un div avec style approprié */
+    #log {
+      width: 100%;
+      height: 200px;
+      background: #F0F0F0;
+      border: 1px solid #CCC;
+      border-radius: 5px;
+      padding: 5px;
+      font-size: 0.85em;
+      overflow-y: auto; /* Ajouté pour le défilement vertical */
+      white-space: pre-wrap; /* Pour conserver les sauts de ligne */
+      font-family: monospace; /* Optionnel : police à chasse fixe */
+    }
+
+    /* Right panel: Stats and Final Key */
+    #right-panel h2 {
+      margin-top: 0;
+      font-size: 1.1em;
+    }
+    #stats, #finalKey {
+      width: 100%;
+      background: #F0F0F0;
+      border: 1px solid #CCC;
+      border-radius: 5px;
+      min-height: 50px;
+      padding: 5px;
+      font-size: 0.9em;
+      white-space: pre-wrap; /* to allow line breaks */
+      margin-bottom: 15px;
+    }
+
+    /* Some colors (similar to those in the Python script) */
+    .color-Z { color: #1E90FF; }  /* Dodger Blue */
+    .color-X { color: #FF8C00; }  /* Dark Orange */
+    .color-empty { color: #808080; } /* Gray */
+    .color-check { color: #00FF00; } /* ✓ Green */
+    .color-cross { color: #FF0000; } /* ✗ Red */
+  </style>
+</head>
+<body>
+
+  <h1>Advanced BB84 Simulator</h1>
+
+  <div id="main-container">
+    
+    <!-- Left panel (controls, rows, console) -->
+    <div id="left-panel">
+      <!-- Controls -->
+      <div id="controls">
+        <label for="nQubits">Number of photons:</label>
+        <input type="number" id="nQubits" min="20" max="500" value="50" />
+
+        <input type="checkbox" id="eveActive" />
+        <label for="eveActive">Enable Eve</label>
+
+        <!-- Removed the interception probability slider
+        <div class="slider-container">
+          <label for="eveProb">Interception Probability:</label>
+          <input type="range" id="eveProb" min="0" max="100" value="100" />
+          <span id="eveProbLabel">100%</span>
+        </div>
+        -->
+
+        <button id="startBtn">Start</button>
+      </div>
+
+      <!-- Alice -->
+      <div class="row" id="rowAlice">
+        <div class="row-title">Alice</div>
+        <div class="row-container" id="rowAliceContainer"></div>
+      </div>
+      <hr />
+      <!-- Eve -->
+      <div class="row" id="rowEve">
+        <div class="row-title">Eve</div>
+        <div class="row-container" id="rowEveContainer"></div>
+      </div>
+      <hr />
+      <!-- Bob -->
+      <div class="row" id="rowBob">
+        <div class="row-title">Bob</div>
+        <div class="row-container" id="rowBobContainer"></div>
+      </div>
+      <hr />
+      <!-- Sifting -->
+      <div class="row" id="rowCrible">
+        <div class="row-title">Sifting</div>
+        <div class="row-container" id="rowCribleContainer"></div>
+      </div>
+      <hr />
+      <!-- Key -->
+      <div class="row" id="rowKey">
+        <div class="row-title">Key</div>
+        <div class="row-container" id="rowKeyContainer"></div>
+      </div>
+      <hr />
+
+      <!-- Console / Event Log -->
+      <div id="console">
+        <div id="log-label">Console / Event Log:</div>
+        <div id="log"></div>
+      </div>
+    </div>
+
+    <!-- Right panel (Statistics, Final Key) -->
+    <div id="right-panel">
+      <h2>Statistics</h2>
+      <div id="stats"></div>
+
+      <h2>Final Key</h2>
+      <div id="finalKey"></div>
+    </div>
+
+  </div>
+
+  <script>
+    /***************************************************
+     * Configuration Variables and Objects
+     ***************************************************/
+    const POLARIZATIONS = {
+      "Z0": "↑",   // 0°
+      "Z1": "→",   // 90°
+      "X0": "↗",   // 45°
+      "X1": "↘"    // 135°
+    };
+
+    const COLORS = {
+      "Z": "color-Z",
+      "X": "color-X",
+      "": "color-empty",
+      "✓": "color-check",
+      "✗": "color-cross"
+    };
+
+    // Access DOM elements
+    const nQubitsInput    = document.getElementById("nQubits");
+    const eveActiveInput  = document.getElementById("eveActive");
+    // Removed elements related to probability
+    // const eveProbInput    = document.getElementById("eveProb");
+    // const eveProbLabel    = document.getElementById("eveProbLabel");
+    const startBtn        = document.getElementById("startBtn");
+
+    const rowAliceContainer  = document.getElementById("rowAliceContainer");
+    const rowEveContainer    = document.getElementById("rowEveContainer");
+    const rowBobContainer    = document.getElementById("rowBobContainer");
+    const rowCribleContainer = document.getElementById("rowCribleContainer");
+    const rowKeyContainer    = document.getElementById("rowKeyContainer");
+
+    const logDiv = document.getElementById("log");
+    const statsDiv = document.getElementById("stats");
+    const finalKeyDiv = document.getElementById("finalKey");
+
+    /***************************************************
+     * Display Management
+     ***************************************************/
+
+    // Removed listener for the probability slider
+    /*
+    eveProbInput.addEventListener("input", () => {
+      eveProbLabel.textContent = eveProbInput.value + "%";
+    });
+    */
+
+    /**
+     * Ajoute un message à la zone "Console / Event Log".
+     * @param {string} message 
+     * @param {boolean} separator 
+     */
+    function insertLog(message, separator=false) {
+      let formattedMessage = message;
+      
+      // Si le message commence par "Step", le mettre en gras
+      if(message.startsWith("Step")) {
+        formattedMessage = `<strong>${message}</strong>`;
+      }
+      
+      // Si c'est un séparateur, ajouter une ligne horizontale
+      if(separator) {
+        logDiv.innerHTML += `<hr />`;
+      }
+      
+      // Ajouter le message avec un saut de ligne
+      logDiv.innerHTML += formattedMessage + "<br />";
+      
+      // Auto-scroll vers le bas
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    /**
+     * Efface les conteneurs (Alice, Eve, Bob, Sifting, Key) et la console.
+     * @param {number} n Nombre de photons
+     */
+    function clearDisplay(n) {
+      rowAliceContainer.innerHTML  = "";
+      rowEveContainer.innerHTML    = "";
+      rowBobContainer.innerHTML    = "";
+      rowCribleContainer.innerHTML = "";
+      rowKeyContainer.innerHTML    = "";
+
+      logDiv.innerHTML = "";
+      statsDiv.textContent = "";
+      finalKeyDiv.textContent = "";
+
+      // Optionally, you can also insert "empty boxes" visually if desired,
+      // but here we leave the line empty, which will be filled after the simulation.
+    }
+
+    /**
+     * Met à jour graphiquement une ligne (par exemple, Alice, Bob, etc.) en affichant `bases[i]` et `states[i]`.
+     * @param {HTMLElement} container L'élément .row-container où les photons sont placés
+     * @param {string[]} bases Tableau des bases (par exemple, ["Z","X","Z",...])
+     * @param {string[]} states Tableau des états (par exemple, ["↑","↘","✗","✓","0","1","?",...])
+     * @param {number[]} highlightIndices Indices dont la base doit être en gras
+     */
+    function updateRow(container, bases, states, highlightIndices=null) {
+      container.innerHTML = "";
+      for(let i=0; i<bases.length; i++) {
+        const base = bases[i] || "";
+        const state = states[i] || "";
+
+        // Couleur du deuxième label (état)
+        let colorClass = COLORS[base] || "color-empty";
+        if(state === "✓") colorClass = COLORS["✓"];
+        if(state === "✗") colorClass = COLORS["✗"];
+
+        const photonBox = document.createElement("div");
+        photonBox.classList.add("photon-box");
+
+        const basisLabel = document.createElement("div");
+        basisLabel.classList.add("basis-label");
+        // Si highlightIndices est défini et contient i => texte en gras
+        if(highlightIndices && highlightIndices.indexOf(i) >= 0) {
+          basisLabel.style.fontWeight = "bold";
+        }
+        // Couleur de la base
+        if(COLORS[base]) {
+          basisLabel.classList.add(COLORS[base]);
+        } else {
+          basisLabel.classList.add("color-empty");
+        }
+        basisLabel.textContent = base;
+
+        const stateLabel = document.createElement("div");
+        stateLabel.classList.add("state-label", colorClass);
+        stateLabel.textContent = state;
+
+        photonBox.appendChild(basisLabel);
+        photonBox.appendChild(stateLabel);
+        container.appendChild(photonBox);
+      }
+    }
+
+    /**
+     * Met à jour la zone "Statistics".
+     * @param {number} total Nombre total de photons
+     * @param {number} kept Nombre de photons gardés (bases communes)
+     * @param {number} errorRate Taux d'erreur
+     */
+    function updateStats(total, kept, errorRate) {
+      const statsText = 
+        `Photons generated: ${total}\n` +
+        `Photons kept: ${kept} (${((kept/total)*100).toFixed(1)}%)\n` +
+        `Error rate: ${(errorRate*100).toFixed(1)}%\n`;
+      statsDiv.textContent = statsText;
+
+      // Highlight based on error rate
+      if(errorRate > 0.15) {
+        statsDiv.style.color = "red";
+      } else {
+        statsDiv.style.color = "green";
+      }
+    }
+
+    /**
+     * Met à jour la zone "Final Key".
+     * @param {string[]} keyStates Tableau des bits (comme "0" ou "1") 
+     *                             ou chaînes vides "" (indices non utilisés).
+     */
+    function updateKey(keyStates) {
+      const cleanKey = keyStates.filter(s => s !== "");
+      const keyText = cleanKey.join("");
+      finalKeyDiv.textContent = `Length: ${cleanKey.length} bits\n\n${keyText}`;
+    }
+
+    /**
+     * Convertit un symbole (↑, →, ↗, ↘) en bit (0 ou 1) basé sur la base.
+     * @param {string} symbol  Ex: "↑"
+     * @param {string} basis   Ex: "Z" ou "X"
+     * @returns {number|null}  0, 1, ou null si indéfini
+     */
+    function symbolToBit(symbol, basis) {
+      if(basis === "Z") {
+        if(symbol === "↑") return 0;
+        if(symbol === "→") return 1;
+      }
+      if(basis === "X") {
+        if(symbol === "↗") return 0;
+        if(symbol === "↘") return 1;
+      }
+      return null;
+    }
+
+    /**
+     * Fonction utilitaire pour obtenir un entier aléatoire dans [0, max).
+     */
+    function randInt(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    /**
+     * Mélange de Fisher-Yates (pour mélanger un tableau).
+     * Retourne un nouveau tableau mélangé.
+     */
+    function shuffleArray(array) {
+      let arr = array.slice(); // copie
+      for (let i = arr.length - 1; i > 0; i--) {
+          const j = randInt(i + 1);
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    /**
+     * Retourne un échantillon de taille `k` à partir du tableau `arr` (sans répétition).
+     * Si k > arr.length, il est limité à arr.length.
+     */
+    function sampleArray(arr, k) {
+      const shuffled = shuffleArray(arr);
+      return shuffled.slice(0, Math.min(k, arr.length));
+    }
+
+    /**
+     * Démarre la simulation complète, suivant les mêmes étapes que le script Python.
+     */
+    function startSimulation() {
+      // Récupère le nombre de photons
+      let n = parseInt(nQubitsInput.value, 10);
+      if(isNaN(n) || n < 20 || n > 500) {
+        alert("Le nombre de photons doit être compris entre 20 et 500.");
+        return;
+      }
+
+      // Efface l'affichage précédent
+      clearDisplay(n);
+
+      // Prépare le journal
+      function log(msg, sep=false) {
+        insertLog(msg, sep);
+      }
+
+      const isEveActive = eveActiveInput.checked;
+      let eveInterceptProb = isEveActive ? 1.0 : 0.0;
+
+      // Step 1: Alice choisit aléatoirement des filtres
+      log("Step 1: Alice randomly chooses filters.", true);
+      let alice_bases = [];
+      for(let i=0; i<n; i++) {
+        alice_bases.push( Math.random() < 0.5 ? "Z" : "X" );
+      }
+      log("   Alice's filters: " + alice_bases.join(", "));
+
+      // Step 2: Alice choisit aléatoirement des bits
+      log("Step 2: Alice randomly chooses bits.");
+      let alice_bits = [];
+      for(let i=0; i<n; i++) {
+        alice_bits.push( Math.random() < 0.5 ? 0 : 1 );
+      }
+      log("   Alice's bits: " + alice_bits.join(", "));
+
+      // Step 3: Alice encode et envoie les photons
+      log("Step 3: Alice encodes bits into quantum states.");
+      let alice_states = [];
+      for(let i=0; i<n; i++) {
+        let key = alice_bases[i] + alice_bits[i];
+        alice_states.push(POLARIZATIONS[key]);
+      }
+      log("   Alice's quantum states: " + alice_states.join(", "));
+
+      // Affiche Alice
+      updateRow(rowAliceContainer, alice_bases, alice_states);
+
+      // Step 4: Bob choisit aléatoirement des filtres
+      log("Step 4: Bob randomly chooses filters.");
+      let bob_bases = [];
+      for(let i=0; i<n; i++) {
+        bob_bases.push( Math.random() < 0.5 ? "Z" : "X" );
+      }
+      log("   Bob's filters: " + bob_bases.join(", "));
+
+      // Step 5: Eve peut intercepter les photons
+      log("Step 5: Eve intercepts photons (if Eve is eavesdropping).");
+      let received_bases = [];
+      let received_states = [];
+
+      let eve_bases = [];
+      let eve_states = [];
+      let intercept_count = 0;
+
+      for(let i=0; i<n; i++) {
+        if(isEveActive && Math.random() < eveInterceptProb) {
+          intercept_count++;
+          log(`   Photon ${i+1} intercepted by Eve.`);
+
+          // Eve choisit aléatoirement une base
+          let eve_basis = (Math.random() < 0.5) ? "Z" : "X";
+          eve_bases.push(eve_basis);
+
+          // Elle "mesure" (reconstruit le bit à partir de l'état d'Alice)
+          let measuredBit = symbolToBit(alice_states[i], alice_bases[i]);
+          if(measuredBit === null) {
+            // Erreur de conversion - par sécurité, prendre un bit aléatoire
+            measuredBit = Math.random()<0.5 ? 0 : 1;
+          }
+          let eve_state = POLARIZATIONS[eve_basis + measuredBit];
+          eve_states.push(eve_state);
+
+          log(`      Eve's basis: ${eve_basis}, Measured bit: ${measuredBit}, Re-emitted state: ${eve_state}`);
+
+          // Bob reçoit le photon réémis par Eve
+          received_bases.push(eve_basis);
+          received_states.push(eve_state);
+
+        } else {
+          // Photon non intercepté
+          received_bases.push(alice_bases[i]);
+          received_states.push(alice_states[i]);
+        }
+      }
+
+      if(isEveActive) {
+        updateRow(rowEveContainer, eve_bases, eve_states);
+        log(`   Total photons intercepted by Eve: ${intercept_count}`);
+      } else {
+        // Eve n'est pas activée : simplement effacer sa ligne
+        updateRow(rowEveContainer, [], []);
+        log("   Eve is not enabled. No photons intercepted.");
+      }
+
+      // Step 6: Bob mesure les photons reçus avec ses filtres
+      log("Step 6: Bob measures the received photons.");
+      let bob_states = [];
+      for(let i=0; i<n; i++) {
+        if(bob_bases[i] === received_bases[i]) {
+          // Même base => même symbole
+          bob_states.push(received_states[i]);
+        } else {
+          // Différente base => résultat aléatoire
+          let rbit = Math.random()<0.5 ? 0 : 1;
+          bob_states.push(POLARIZATIONS[bob_bases[i] + rbit]);
+        }
+      }
+      log("   Bob's measured states: " + bob_states.join(", "));
+
+      updateRow(rowBobContainer, bob_bases, bob_states);
+
+      // Step 7: Découverte des filtres communs
+      log("Step 7: Alice and Bob identify common filters.");
+      let sifted_indices = [];
+      for(let i=0; i<n; i++) {
+        if(alice_bases[i] === bob_bases[i]) {
+          sifted_indices.push(i);
+        }
+      }
+      log("   Common indices: " + sifted_indices.join(", "));
+
+      // Mettre en gras les indices communs
+      updateRow(rowAliceContainer, alice_bases, alice_states, sifted_indices);
+      updateRow(rowBobContainer, bob_bases, bob_states, sifted_indices);
+
+      // Step 8: Sélection d'un échantillon pour tester l'erreur
+      log("Step 8: Selecting a sample to evaluate the error rate.");
+      let sample_size = Math.max(3, Math.floor(sifted_indices.length / 2));
+      let sample_indices = [];
+      if(sifted_indices.length >= sample_size) {
+        sample_indices = sampleArray(sifted_indices, sample_size);
+        log(`   Sampled indices: ${sample_indices.join(", ")}`);
+      } else {
+        log("   Not enough common filters for a significant sample.");
+      }
+
+      // Step 9: Sifting (comparaison des bits de contrôle)
+      log("Step 9: Comparing control bits.");
+      let error_indices = new Set();
+
+      let sifting_bases  = new Array(n).fill("");
+      let sifting_states = new Array(n).fill("");
+
+      for(let i=0; i<n; i++) {
+        if(sifted_indices.indexOf(i) !== -1) {
+          // Même base => écrire
+          sifting_bases[i] = alice_bases[i];
+          if(sample_indices.indexOf(i) !== -1) {
+            // Bit de contrôle
+            let alice_bit = alice_bits[i];
+            let bob_bit = symbolToBit(bob_states[i], bob_bases[i]);
+            if(bob_bit === null || alice_bit !== bob_bit) {
+              sifting_states[i] = "✗";
+              error_indices.add(i);
+              log(`   Error detected at index ${i}. (Alice=${alice_bit}, Bob=${bob_bit})`);
+            } else {
+              sifting_states[i] = "✓";
+              log(`   No error at index ${i}. (Alice=${alice_bit}, Bob=${bob_bit})`);
+            }
+          } else {
+            // Bit utile (clé future)
+            sifting_states[i] = alice_bits[i].toString();
+          }
+        } else {
+          // Différente base
+          sifting_bases[i] = "";
+          sifting_states[i] = "?";
+        }
+      }
+
+      log("   Sifting results: " + sifting_states.join(", "));
+      updateRow(rowCribleContainer, sifting_bases, sifting_states);
+
+      // Step 10: Calcul du taux d'erreur
+      log("Step 10: Calculating the error rate.");
+      let actualSampleSize = sample_indices.length;
+      let errorRate = 0;
+      if(actualSampleSize > 0) {
+        errorRate = error_indices.size / actualSampleSize;
+      }
+      log(`   Error rate: ${(errorRate*100).toFixed(1)}%`);
+
+      // Step 11: Évaluation de la confiance de la connexion
+      log("Step 11: Assessing the confidence of the connection.");
+      if(errorRate > 0.15) {
+        log("    High error rate. Connection not secure.");
+      } else {
+        log("    Acceptable error rate. Connection secure.");
+      }
+
+      // Step 12: Formation de la clé secrète
+      log("Step 12: Generating the secret key.");
+      let key_states = new Array(n).fill("");
+      for(let idx of sifted_indices) {
+        if(!error_indices.has(idx) && sample_indices.indexOf(idx) === -1) {
+          key_states[idx] = alice_bits[idx].toString();
+        }
+      }
+      let finalKeyArr = key_states.filter(s => s !== "");
+      let finalKeyStr = finalKeyArr.join("");
+      log(`   Secret key: ${finalKeyStr} (${finalKeyArr.length} bits)`);
+
+      // Met à jour la ligne "Key"
+      updateRow(rowKeyContainer, new Array(n).fill(""), key_states);
+
+      // Met à jour les panneaux droits
+      updateStats(n, sifted_indices.length, errorRate);
+      updateKey(key_states);
+
+      log("--------------------------------------------------");
+      log("Simulation completed.", true);
+    }
+
+    /***************************************************
+     * Events
+     ***************************************************/
+    startBtn.addEventListener("click", startSimulation);
+
+  </script>
+</body>
+</html>
