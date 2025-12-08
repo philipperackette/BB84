@@ -9,7 +9,7 @@ Tout est implémenté dans un seul fichier HTML/CSS/JavaScript : `bb84.html`.
 
 La version en ligne est accessible ici :
 
-- Page principale : https://philipperackette.github.io/BB64/
+- Page principale : https://philipperackette.github.io/BB84/
 
 Le dépôt est donc utilisable directement depuis un simple navigateur, sans aucune installation locale.
 
