@@ -37,8 +37,8 @@ Si tu veux utiliser la page en local (sans passer par GitHub Pages) :
 1. Cloner le dépôt :
 
    ```bash
-   git clone https://github.com/philipperackette/BB64.git
-   cd BB64
+   git clone https://github.com/philipperackette/BB84.git
+   cd BB84
    ```
 
 2. Ouvrir `bb84.html` dans un navigateur (double-clic ou glisser-déposer dans la fenêtre du navigateur).
