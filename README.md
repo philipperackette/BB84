@@ -1,54 +1,64 @@
-# BB84 – Démonstrateur interactif
+# BB84
 
-Ce dépôt contient une page web interactive illustrant le **protocole de distribution quantique de clés BB84**.  
-Tout est implémenté dans un seul fichier HTML/CSS/JavaScript : `bb84.html`.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
----
+## English
 
-## 🔗 Démo en ligne
+Interactive demonstration of the **BB84 quantum key distribution protocol**, intended as a compact educational and technical illustration of the core exchange logic.
 
-La version en ligne est accessible ici :
+### Contents
 
-- Page principale : https://philipperackette.github.io/BB84/
+- `bb84.html`: main interactive demonstration
+- `index.html`: lightweight entry page
+- `LICENSE`: MIT license
 
-Le dépôt est donc utilisable directement depuis un simple navigateur, sans aucune installation locale.
+### Usage
 
----
+Clone the repository and open the HTML file in a browser.
 
-## 🧪 Fonctionnalités
+```bash
+git clone https://github.com/philipperackette/BB84.git
+cd BB84
+# Open bb84.html in a browser
+```
 
-La page permet notamment de :
+### Intended audience
 
-- visualiser les choix de bases et de bits d’**Alice** ;
-- visualiser les mesures de **Bob** (avec ou sans interception) ;
-- simuler la présence d’une éventuelle espionne **Eve** ;
-- afficher le **criblage (sifting)** entre Alice et Bob ;
-- calculer le **taux d’erreur** introduit par l’espionnage ;
-- afficher la **clé finale partagée** après élimination des bits incompatibles.
-
-L’interface est pensée pour un usage **pédagogique** (cours de cryptographie / physique quantique).
-
----
-
-## 💻 Utilisation locale
-
-Si tu veux utiliser la page en local (sans passer par GitHub Pages) :
-
-1. Cloner le dépôt :
-
-   ```bash
-   git clone https://github.com/philipperackette/BB84.git
-   cd BB84
-   ```
-
-2. Ouvrir `bb84.html` dans un navigateur (double-clic ou glisser-déposer dans la fenêtre du navigateur).
-
-Aucun serveur web ni dépendance Python n’est nécessaire : tout est purement côté client.
+- readers interested in introductory quantum cryptography,
+- teachers and students,
+- anyone wanting a simple browser-based BB84 demonstration.
 
 ---
 
-## 📁 Contenu du dépôt
+## Français
 
-- `bb84.html` : page principale, tout le code de la démonstration BB84.
-- `index.html` : petite page de redirection automatique vers `bb84.html` pour GitHub Pages.
-- `README.md` : ce fichier de documentation.
+Démonstrateur interactif du protocole de distribution quantique de clés **BB84**, pensé comme une illustration compacte, pédagogique et technique du mécanisme d'échange.
+
+### Contenu
+
+- `bb84.html` : démonstrateur interactif principal
+- `index.html` : page d'entrée légère
+- `LICENSE` : licence MIT
+
+### Utilisation
+
+Clonez le dépôt puis ouvrez le fichier HTML dans un navigateur.
+
+```bash
+git clone https://github.com/philipperackette/BB84.git
+cd BB84
+# Ouvrir bb84.html dans un navigateur
+```
+
+### Public visé
+
+- personnes intéressées par une première approche de la cryptographie quantique,
+- enseignants et étudiants,
+- toute personne voulant une démo BB84 simple dans le navigateur.
+
+---
+
+## Licence / License
+
+Ce projet est distribué sous licence [MIT](LICENSE).  
+This project is distributed under the [MIT License](LICENSE).
