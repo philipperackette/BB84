@@ -6,6 +6,8 @@
 
 Interactive demonstration of the **BB84 quantum key distribution protocol**, intended as a compact educational and technical illustration of the core exchange logic.
 
+**Online version:** https://philipperackette.github.io/BB84/
+
 ### Contents
 
 - `bb84.html`: main interactive demonstration
