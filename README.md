@@ -36,6 +36,8 @@ cd BB84
 
 Démonstrateur interactif du protocole de distribution quantique de clés **BB84**, pensé comme une illustration compacte, pédagogique et technique du mécanisme d'échange.
 
+**Version en ligne :** https://philipperackette.github.io/BB84/
+
 ### Contenu
 
 - `bb84.html` : démonstrateur interactif principal
