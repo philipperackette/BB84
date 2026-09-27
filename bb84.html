@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Advanced BB84 Simulator</title>
   <style>
     body {
@@ -65,15 +66,17 @@
       margin-left: 10px;
       margin-right: 5px;
     }
-    /* Removed styles for .slider-container and input[type="range"] */
-    /* #controls .slider-container {
+    #controls .slider-container {
       display: flex;
       align-items: center;
       margin-left: 10px;
     }
+    #controls .slider-container[hidden] {
+      display: none;
+    }
     #controls input[type="range"] {
       margin: 0 5px;
-    } */
+    }
     #controls button {
       margin-left: 10px;
       padding: 5px 15px;
@@ -139,6 +142,8 @@
       overflow-y: auto; /* Ajouté pour le défilement vertical */
       white-space: pre-wrap; /* Pour conserver les sauts de ligne */
       font-family: monospace; /* Optionnel : police à chasse fixe */
+      overflow-wrap: anywhere;
+      box-sizing: border-box;
     }
 
     /* Right panel: Stats and Final Key */
@@ -155,6 +160,8 @@
       padding: 5px;
       font-size: 0.9em;
       white-space: pre-wrap; /* to allow line breaks */
+      overflow-wrap: anywhere; /* long keys wrap inside the panel */
+      box-sizing: border-box;
       margin-bottom: 15px;
     }
 
@@ -162,8 +169,41 @@
     .color-Z { color: #1E90FF; }  /* Dodger Blue */
     .color-X { color: #FF8C00; }  /* Dark Orange */
     .color-empty { color: #808080; } /* Gray */
-    .color-check { color: #00FF00; } /* ✓ Green */
-    .color-cross { color: #FF0000; } /* ✗ Red */
+    .color-check { color: #1A8F2E; } /* ✓ Green */
+    .color-cross { color: #D32F2F; } /* ✗ Red */
+    .color-mismatch { color: #D32F2F; text-decoration: underline; }
+
+    #log .log-step { font-weight: bold; }
+    #log hr { border: none; border-top: 1px solid #CCC; margin: 4px 0; }
+
+    .stats-ok { color: #1A8F2E; }
+    .stats-alert { color: #D32F2F; }
+
+    #legend {
+      font-size: 0.85em;
+      background: #FFF;
+      border: 1px solid #CCC;
+      border-radius: 5px;
+      padding: 5px 10px;
+      margin-bottom: 15px;
+      line-height: 1.6;
+    }
+
+    /* Narrow screens: stack the two panels */
+    @media (max-width: 800px) {
+      #main-container {
+        flex-direction: column;
+        height: auto;
+      }
+      #right-panel {
+        width: auto;
+        border-left: none;
+        border-top: 1px solid #CCC;
+      }
+      #controls button {
+        margin: 8px 0 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -182,13 +222,11 @@
         <input type="checkbox" id="eveActive" />
         <label for="eveActive">Enable Eve</label>
 
-        <!-- Removed the interception probability slider
-        <div class="slider-container">
-          <label for="eveProb">Interception Probability:</label>
-          <input type="range" id="eveProb" min="0" max="100" value="100" />
+        <div class="slider-container" id="eveProbContainer" hidden>
+          <label for="eveProb">Interception probability:</label>
+          <input type="range" id="eveProb" min="0" max="100" step="5" value="100" />
           <span id="eveProbLabel">100%</span>
         </div>
-        -->
 
         <button id="startBtn">Start</button>
       </div>
@@ -238,6 +276,15 @@
 
       <h2>Final Key</h2>
       <div id="finalKey"></div>
+
+      <h2>Legend</h2>
+      <div id="legend">
+        <span class="color-Z">Z</span> basis: <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />
+        <span class="color-X">X</span> basis: <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />
+        Sifting: <span class="color-check">✓</span> / <span class="color-cross">✗</span> = sampled control bit (match / error),
+        0 / 1 = kept for the key, ? = bases differ (discarded)<br />
+        Key: <span class="color-mismatch">underlined red</span> = Bob's bit differs from Alice's
+      </div>
     </div>
 
   </div>
@@ -261,13 +308,17 @@
       "✗": "color-cross"
     };
 
+    // Above this QBER, Alice and Bob abort: no secure key can be distilled
+    // (≈ 11% is the usual BB84 bound with one-way error correction).
+    const QBER_THRESHOLD = 0.11;
+
     // Access DOM elements
-    const nQubitsInput    = document.getElementById("nQubits");
-    const eveActiveInput  = document.getElementById("eveActive");
-    // Removed elements related to probability
-    // const eveProbInput    = document.getElementById("eveProb");
-    // const eveProbLabel    = document.getElementById("eveProbLabel");
-    const startBtn        = document.getElementById("startBtn");
+    const nQubitsInput     = document.getElementById("nQubits");
+    const eveActiveInput   = document.getElementById("eveActive");
+    const eveProbContainer = document.getElementById("eveProbContainer");
+    const eveProbInput     = document.getElementById("eveProb");
+    const eveProbLabel     = document.getElementById("eveProbLabel");
+    const startBtn         = document.getElementById("startBtn");
 
     const rowAliceContainer  = document.getElementById("rowAliceContainer");
     const rowEveContainer    = document.getElementById("rowEveContainer");
@@ -283,12 +334,12 @@
      * Display Management
      ***************************************************/
 
-    // Removed listener for the probability slider
-    /*
+    eveActiveInput.addEventListener("change", () => {
+      eveProbContainer.hidden = !eveActiveInput.checked;
+    });
     eveProbInput.addEventListener("input", () => {
       eveProbLabel.textContent = eveProbInput.value + "%";
     });
-    */
 
     /**
      * Ajoute un message à la zone "Console / Event Log".
@@ -296,30 +347,27 @@
      * @param {boolean} separator 
      */
     function insertLog(message, separator=false) {
-      let formattedMessage = message;
-      
-      // Si le message commence par "Step", le mettre en gras
-      if(message.startsWith("Step")) {
-        formattedMessage = `<strong>${message}</strong>`;
-      }
-      
       // Si c'est un séparateur, ajouter une ligne horizontale
       if(separator) {
-        logDiv.innerHTML += `<hr />`;
+        logDiv.appendChild(document.createElement("hr"));
       }
-      
-      // Ajouter le message avec un saut de ligne
-      logDiv.innerHTML += formattedMessage + "<br />";
-      
+
+      const line = document.createElement("div");
+      line.textContent = message;
+      // Si le message commence par "Step", le mettre en gras
+      if(message.startsWith("Step")) {
+        line.classList.add("log-step");
+      }
+      logDiv.appendChild(line);
+
       // Auto-scroll vers le bas
       logDiv.scrollTop = logDiv.scrollHeight;
     }
 
     /**
      * Efface les conteneurs (Alice, Eve, Bob, Sifting, Key) et la console.
-     * @param {number} n Nombre de photons
      */
-    function clearDisplay(n) {
+    function clearDisplay() {
       rowAliceContainer.innerHTML  = "";
       rowEveContainer.innerHTML    = "";
       rowBobContainer.innerHTML    = "";
@@ -327,11 +375,8 @@
       rowKeyContainer.innerHTML    = "";
 
       logDiv.innerHTML = "";
-      statsDiv.textContent = "";
+      statsDiv.innerHTML = "";
       finalKeyDiv.textContent = "";
-
-      // Optionally, you can also insert "empty boxes" visually if desired,
-      // but here we leave the line empty, which will be filled after the simulation.
     }
 
     /**
@@ -340,8 +385,9 @@
      * @param {string[]} bases Tableau des bases (par exemple, ["Z","X","Z",...])
      * @param {string[]} states Tableau des états (par exemple, ["↑","↘","✗","✓","0","1","?",...])
      * @param {number[]} highlightIndices Indices dont la base doit être en gras
+     * @param {Object<number,string>} stateClasses Classe CSS imposée pour l'état de certains indices
      */
-    function updateRow(container, bases, states, highlightIndices=null) {
+    function updateRow(container, bases, states, highlightIndices=null, stateClasses=null) {
       container.innerHTML = "";
       for(let i=0; i<bases.length; i++) {
         const base = bases[i] || "";
@@ -351,27 +397,26 @@
         let colorClass = COLORS[base] || "color-empty";
         if(state === "✓") colorClass = COLORS["✓"];
         if(state === "✗") colorClass = COLORS["✗"];
+        if(stateClasses && stateClasses[i]) colorClass = stateClasses[i];
 
         const photonBox = document.createElement("div");
         photonBox.classList.add("photon-box");
+        photonBox.title = `Photon ${i+1}`;
 
         const basisLabel = document.createElement("div");
         basisLabel.classList.add("basis-label");
         // Si highlightIndices est défini et contient i => texte en gras
-        if(highlightIndices && highlightIndices.indexOf(i) >= 0) {
+        if(highlightIndices && highlightIndices.has(i)) {
           basisLabel.style.fontWeight = "bold";
         }
         // Couleur de la base
-        if(COLORS[base]) {
-          basisLabel.classList.add(COLORS[base]);
-        } else {
-          basisLabel.classList.add("color-empty");
-        }
-        basisLabel.textContent = base;
+        basisLabel.classList.add(COLORS[base] || "color-empty");
+        // Espace insécable pour garder l'alignement des colonnes vides
+        basisLabel.textContent = base || " ";
 
         const stateLabel = document.createElement("div");
         stateLabel.classList.add("state-label", colorClass);
-        stateLabel.textContent = state;
+        stateLabel.textContent = state || " ";
 
         photonBox.appendChild(basisLabel);
         photonBox.appendChild(stateLabel);
@@ -381,34 +426,53 @@
 
     /**
      * Met à jour la zone "Statistics".
-     * @param {number} total Nombre total de photons
-     * @param {number} kept Nombre de photons gardés (bases communes)
-     * @param {number} errorRate Taux d'erreur
+     * @param {Object} r Résultats de la simulation
      */
-    function updateStats(total, kept, errorRate) {
-      const statsText = 
-        `Photons generated: ${total}\n` +
-        `Photons kept: ${kept} (${((kept/total)*100).toFixed(1)}%)\n` +
-        `Error rate: ${(errorRate*100).toFixed(1)}%\n`;
-      statsDiv.textContent = statsText;
-
-      // Highlight based on error rate
-      if(errorRate > 0.15) {
-        statsDiv.style.color = "red";
-      } else {
-        statsDiv.style.color = "green";
+    function updateStats(r) {
+      const pct = (x) => (x*100).toFixed(1) + "%";
+      const lines = [
+        `Photons generated: ${r.n}`,
+        `Photons kept after sifting: ${r.sifted} (${pct(r.sifted/r.n)})`,
+        `Control bits sampled: ${r.sampleSize}`,
+        `Measured error rate (QBER): ${pct(r.errorRate)}`,
+        `Abort threshold: ${pct(QBER_THRESHOLD)}`
+      ];
+      if(r.eveActive) {
+        lines.push(
+          "",
+          `Photons intercepted by Eve: ${r.intercepted} (${pct(r.intercepted/r.n)})`,
+          `Expected QBER caused by Eve: ≈ ${pct(r.eveProb/4)}`
+        );
       }
+      lines.push("", r.secure
+        ? "Error rate acceptable: key accepted."
+        : "Error rate too high: eavesdropping suspected, key discarded.");
+
+      statsDiv.textContent = lines.join("\n");
+      statsDiv.className = r.secure ? "stats-ok" : "stats-alert";
     }
 
     /**
      * Met à jour la zone "Final Key".
-     * @param {string[]} keyStates Tableau des bits (comme "0" ou "1") 
-     *                             ou chaînes vides "" (indices non utilisés).
+     * @param {Object} r Résultats de la simulation
      */
-    function updateKey(keyStates) {
-      const cleanKey = keyStates.filter(s => s !== "");
-      const keyText = cleanKey.join("");
-      finalKeyDiv.textContent = `Length: ${cleanKey.length} bits\n\n${keyText}`;
+    function updateKey(r) {
+      if(!r.secure) {
+        finalKeyDiv.textContent = "No key: the exchange was aborted.";
+        return;
+      }
+      let text =
+        `Length: ${r.aliceKey.length} bits\n\n` +
+        `Alice: ${r.aliceKey.join("")}\n` +
+        `Bob:   ${r.bobKey.join("")}\n\n` +
+        `Bits that differ: ${r.keyMismatches}`;
+      if(r.keyMismatches > 0) {
+        text += " (to be fixed by error correction, then privacy amplification)";
+      }
+      if(r.eveActive) {
+        text += `\nKey bits Eve knows exactly: ${r.eveKnown} / ${r.aliceKey.length}`;
+      }
+      finalKeyDiv.textContent = text;
     }
 
     /**
@@ -430,10 +494,31 @@
     }
 
     /**
+     * Mesure d'un photon polarisé `state` (préparé dans la base `stateBasis`)
+     * avec un filtre de base `measureBasis`.
+     * Même base : résultat certain. Base différente : résultat aléatoire (50/50).
+     * @returns {number} bit mesuré
+     */
+    function measure(state, stateBasis, measureBasis) {
+      if(stateBasis === measureBasis) {
+        return symbolToBit(state, stateBasis);
+      }
+      return randomBit();
+    }
+
+    /**
      * Fonction utilitaire pour obtenir un entier aléatoire dans [0, max).
      */
     function randInt(max) {
       return Math.floor(Math.random() * max);
+    }
+
+    function randomBit() {
+      return randInt(2);
+    }
+
+    function randomBasis() {
+      return randomBit() === 0 ? "Z" : "X";
     }
 
     /**
@@ -459,7 +544,7 @@
     }
 
     /**
-     * Démarre la simulation complète, suivant les mêmes étapes que le script Python.
+     * Démarre la simulation complète.
      */
     function startSimulation() {
       // Récupère le nombre de photons
@@ -470,174 +555,131 @@
       }
 
       // Efface l'affichage précédent
-      clearDisplay(n);
+      clearDisplay();
 
-      // Prépare le journal
-      function log(msg, sep=false) {
-        insertLog(msg, sep);
-      }
+      const log = insertLog;
 
       const isEveActive = eveActiveInput.checked;
-      let eveInterceptProb = isEveActive ? 1.0 : 0.0;
+      const eveInterceptProb = isEveActive ? Number(eveProbInput.value) / 100 : 0;
 
       // Step 1: Alice choisit aléatoirement des filtres
       log("Step 1: Alice randomly chooses filters.", true);
-      let alice_bases = [];
-      for(let i=0; i<n; i++) {
-        alice_bases.push( Math.random() < 0.5 ? "Z" : "X" );
-      }
+      const alice_bases = Array.from({length: n}, randomBasis);
       log("   Alice's filters: " + alice_bases.join(", "));
 
       // Step 2: Alice choisit aléatoirement des bits
       log("Step 2: Alice randomly chooses bits.");
-      let alice_bits = [];
-      for(let i=0; i<n; i++) {
-        alice_bits.push( Math.random() < 0.5 ? 0 : 1 );
-      }
+      const alice_bits = Array.from({length: n}, randomBit);
       log("   Alice's bits: " + alice_bits.join(", "));
 
       // Step 3: Alice encode et envoie les photons
       log("Step 3: Alice encodes bits into quantum states.");
-      let alice_states = [];
-      for(let i=0; i<n; i++) {
-        let key = alice_bases[i] + alice_bits[i];
-        alice_states.push(POLARIZATIONS[key]);
-      }
+      const alice_states = alice_bits.map((bit, i) => POLARIZATIONS[alice_bases[i] + bit]);
       log("   Alice's quantum states: " + alice_states.join(", "));
-
-      // Affiche Alice
-      updateRow(rowAliceContainer, alice_bases, alice_states);
 
       // Step 4: Bob choisit aléatoirement des filtres
       log("Step 4: Bob randomly chooses filters.");
-      let bob_bases = [];
-      for(let i=0; i<n; i++) {
-        bob_bases.push( Math.random() < 0.5 ? "Z" : "X" );
-      }
+      const bob_bases = Array.from({length: n}, randomBasis);
       log("   Bob's filters: " + bob_bases.join(", "));
 
-      // Step 5: Eve peut intercepter les photons
+      // Step 5: Eve peut intercepter les photons (intercept-resend)
       log("Step 5: Eve intercepts photons (if Eve is eavesdropping).");
-      let received_bases = [];
-      let received_states = [];
+      const received_bases = alice_bases.slice();
+      const received_states = alice_states.slice();
 
-      let eve_bases = [];
-      let eve_states = [];
+      // Colonnes vides pour les photons qu'Eve laisse passer
+      const eve_bases  = new Array(n).fill("");
+      const eve_states = new Array(n).fill("");
+      const eve_bits   = new Array(n).fill(null);
       let intercept_count = 0;
 
-      for(let i=0; i<n; i++) {
-        if(isEveActive && Math.random() < eveInterceptProb) {
+      if(isEveActive) {
+        log(`   Interception probability: ${Math.round(eveInterceptProb*100)}%`);
+        for(let i=0; i<n; i++) {
+          if(Math.random() >= eveInterceptProb) continue;
           intercept_count++;
-          log(`   Photon ${i+1} intercepted by Eve.`);
 
-          // Eve choisit aléatoirement une base
-          let eve_basis = (Math.random() < 0.5) ? "Z" : "X";
-          eve_bases.push(eve_basis);
+          // Eve ne connaît pas la base d'Alice : elle en choisit une au hasard
+          // et mesure. Si elle se trompe de base, son résultat est aléatoire.
+          const eve_basis = randomBasis();
+          const eve_bit = measure(alice_states[i], alice_bases[i], eve_basis);
+          const eve_state = POLARIZATIONS[eve_basis + eve_bit];
 
-          // Elle "mesure" (reconstruit le bit à partir de l'état d'Alice)
-          let measuredBit = symbolToBit(alice_states[i], alice_bases[i]);
-          if(measuredBit === null) {
-            // Erreur de conversion - par sécurité, prendre un bit aléatoire
-            measuredBit = Math.random()<0.5 ? 0 : 1;
-          }
-          let eve_state = POLARIZATIONS[eve_basis + measuredBit];
-          eve_states.push(eve_state);
+          eve_bases[i] = eve_basis;
+          eve_bits[i] = eve_bit;
+          eve_states[i] = eve_state;
 
-          log(`      Eve's basis: ${eve_basis}, Measured bit: ${measuredBit}, Re-emitted state: ${eve_state}`);
+          log(`   Photon ${i+1}: Eve's basis ${eve_basis}` +
+              (eve_basis === alice_bases[i] ? " (same as Alice)" : " (wrong basis, random result)") +
+              `, measured bit ${eve_bit}, re-emitted state ${eve_state}`);
 
           // Bob reçoit le photon réémis par Eve
-          received_bases.push(eve_basis);
-          received_states.push(eve_state);
-
-        } else {
-          // Photon non intercepté
-          received_bases.push(alice_bases[i]);
-          received_states.push(alice_states[i]);
+          received_bases[i] = eve_basis;
+          received_states[i] = eve_state;
         }
-      }
-
-      if(isEveActive) {
-        updateRow(rowEveContainer, eve_bases, eve_states);
         log(`   Total photons intercepted by Eve: ${intercept_count}`);
       } else {
-        // Eve n'est pas activée : simplement effacer sa ligne
-        updateRow(rowEveContainer, [], []);
         log("   Eve is not enabled. No photons intercepted.");
       }
+      updateRow(rowEveContainer, isEveActive ? eve_bases : [], eve_states);
 
       // Step 6: Bob mesure les photons reçus avec ses filtres
       log("Step 6: Bob measures the received photons.");
-      let bob_states = [];
-      for(let i=0; i<n; i++) {
-        if(bob_bases[i] === received_bases[i]) {
-          // Même base => même symbole
-          bob_states.push(received_states[i]);
-        } else {
-          // Différente base => résultat aléatoire
-          let rbit = Math.random()<0.5 ? 0 : 1;
-          bob_states.push(POLARIZATIONS[bob_bases[i] + rbit]);
-        }
-      }
+      const bob_bits = bob_bases.map((basis, i) => measure(received_states[i], received_bases[i], basis));
+      const bob_states = bob_bits.map((bit, i) => POLARIZATIONS[bob_bases[i] + bit]);
       log("   Bob's measured states: " + bob_states.join(", "));
 
-      updateRow(rowBobContainer, bob_bases, bob_states);
-
-      // Step 7: Découverte des filtres communs
-      log("Step 7: Alice and Bob identify common filters.");
-      let sifted_indices = [];
+      // Step 7: Découverte des filtres communs (échange public des bases)
+      log("Step 7: Alice and Bob publicly compare their filters and keep the common ones.");
+      const sifted_indices = [];
       for(let i=0; i<n; i++) {
         if(alice_bases[i] === bob_bases[i]) {
           sifted_indices.push(i);
         }
       }
-      log("   Common indices: " + sifted_indices.join(", "));
+      const siftedSet = new Set(sifted_indices);
+      log("   Common indices: " + sifted_indices.map(i => i+1).join(", "));
 
       // Mettre en gras les indices communs
-      updateRow(rowAliceContainer, alice_bases, alice_states, sifted_indices);
-      updateRow(rowBobContainer, bob_bases, bob_states, sifted_indices);
+      updateRow(rowAliceContainer, alice_bases, alice_states, siftedSet);
+      updateRow(rowBobContainer, bob_bases, bob_states, siftedSet);
 
       // Step 8: Sélection d'un échantillon pour tester l'erreur
       log("Step 8: Selecting a sample to evaluate the error rate.");
-      let sample_size = Math.max(3, Math.floor(sifted_indices.length / 2));
+      const sample_size = Math.max(3, Math.floor(sifted_indices.length / 2));
       let sample_indices = [];
       if(sifted_indices.length >= sample_size) {
-        sample_indices = sampleArray(sifted_indices, sample_size);
-        log(`   Sampled indices: ${sample_indices.join(", ")}`);
+        sample_indices = sampleArray(sifted_indices, sample_size).sort((a, b) => a - b);
+        log(`   Sampled indices: ${sample_indices.map(i => i+1).join(", ")}`);
       } else {
         log("   Not enough common filters for a significant sample.");
       }
+      const sampleSet = new Set(sample_indices);
 
-      // Step 9: Sifting (comparaison des bits de contrôle)
+      // Step 9: Comparaison publique des bits de contrôle
       log("Step 9: Comparing control bits.");
-      let error_indices = new Set();
+      let error_count = 0;
 
-      let sifting_bases  = new Array(n).fill("");
-      let sifting_states = new Array(n).fill("");
+      const sifting_bases  = new Array(n).fill("");
+      const sifting_states = new Array(n).fill("?");
 
-      for(let i=0; i<n; i++) {
-        if(sifted_indices.indexOf(i) !== -1) {
-          // Même base => écrire
-          sifting_bases[i] = alice_bases[i];
-          if(sample_indices.indexOf(i) !== -1) {
-            // Bit de contrôle
-            let alice_bit = alice_bits[i];
-            let bob_bit = symbolToBit(bob_states[i], bob_bases[i]);
-            if(bob_bit === null || alice_bit !== bob_bit) {
-              sifting_states[i] = "✗";
-              error_indices.add(i);
-              log(`   Error detected at index ${i}. (Alice=${alice_bit}, Bob=${bob_bit})`);
-            } else {
-              sifting_states[i] = "✓";
-              log(`   No error at index ${i}. (Alice=${alice_bit}, Bob=${bob_bit})`);
-            }
+      for(let i of sifted_indices) {
+        sifting_bases[i] = alice_bases[i];
+        if(sampleSet.has(i)) {
+          // Bit de contrôle (révélé publiquement, donc sacrifié)
+          const alice_bit = alice_bits[i];
+          const bob_bit = bob_bits[i];
+          if(alice_bit !== bob_bit) {
+            sifting_states[i] = "✗";
+            error_count++;
+            log(`   Error detected at photon ${i+1}. (Alice=${alice_bit}, Bob=${bob_bit})`);
           } else {
-            // Bit utile (clé future)
-            sifting_states[i] = alice_bits[i].toString();
+            sifting_states[i] = "✓";
+            log(`   No error at photon ${i+1}. (Alice=${alice_bit}, Bob=${bob_bit})`);
           }
         } else {
-          // Différente base
-          sifting_bases[i] = "";
-          sifting_states[i] = "?";
+          // Bit utile (clé future)
+          sifting_states[i] = alice_bits[i].toString();
         }
       }
 
@@ -646,39 +688,57 @@
 
       // Step 10: Calcul du taux d'erreur
       log("Step 10: Calculating the error rate.");
-      let actualSampleSize = sample_indices.length;
-      let errorRate = 0;
-      if(actualSampleSize > 0) {
-        errorRate = error_indices.size / actualSampleSize;
-      }
-      log(`   Error rate: ${(errorRate*100).toFixed(1)}%`);
+      const errorRate = sample_indices.length > 0 ? error_count / sample_indices.length : 0;
+      log(`   Error rate: ${(errorRate*100).toFixed(1)}% (${error_count}/${sample_indices.length})`);
 
       // Step 11: Évaluation de la confiance de la connexion
       log("Step 11: Assessing the confidence of the connection.");
-      if(errorRate > 0.15) {
-        log("    High error rate. Connection not secure.");
+      const secure = sample_indices.length > 0 && errorRate <= QBER_THRESHOLD;
+      if(sample_indices.length === 0) {
+        log("   No control bits: the channel cannot be checked. Exchange aborted.");
+      } else if(!secure) {
+        log(`   Error rate above ${(QBER_THRESHOLD*100).toFixed(0)}%: eavesdropping suspected. Exchange aborted.`);
       } else {
-        log("    Acceptable error rate. Connection secure.");
+        log("   Acceptable error rate. Connection considered secure.");
       }
 
-      // Step 12: Formation de la clé secrète
+      // Step 12: Formation de la clé secrète (bits communs non révélés)
       log("Step 12: Generating the secret key.");
-      let key_states = new Array(n).fill("");
-      for(let idx of sifted_indices) {
-        if(!error_indices.has(idx) && sample_indices.indexOf(idx) === -1) {
-          key_states[idx] = alice_bits[idx].toString();
+      const key_indices = secure ? sifted_indices.filter(i => !sampleSet.has(i)) : [];
+      const key_states = new Array(n).fill("");
+      const mismatchClasses = {};
+      const aliceKey = [], bobKey = [];
+      let keyMismatches = 0, eveKnown = 0;
+      for(let i of key_indices) {
+        key_states[i] = alice_bits[i].toString();
+        aliceKey.push(alice_bits[i]);
+        bobKey.push(bob_bits[i]);
+        if(alice_bits[i] !== bob_bits[i]) {
+          keyMismatches++;
+          mismatchClasses[i] = "color-mismatch";
+        }
+        if(eve_bits[i] === alice_bits[i] && eve_bases[i] === alice_bases[i]) {
+          eveKnown++;
         }
       }
-      let finalKeyArr = key_states.filter(s => s !== "");
-      let finalKeyStr = finalKeyArr.join("");
-      log(`   Secret key: ${finalKeyStr} (${finalKeyArr.length} bits)`);
+      if(secure) {
+        log(`   Alice's key: ${aliceKey.join("")} (${aliceKey.length} bits)`);
+        log(`   Bob's key:   ${bobKey.join("")} (${keyMismatches} differing bit(s))`);
+      } else {
+        log("   No key generated.");
+      }
 
       // Met à jour la ligne "Key"
-      updateRow(rowKeyContainer, new Array(n).fill(""), key_states);
+      updateRow(rowKeyContainer, new Array(n).fill(""), key_states, null, mismatchClasses);
 
       // Met à jour les panneaux droits
-      updateStats(n, sifted_indices.length, errorRate);
-      updateKey(key_states);
+      const results = {
+        n, sifted: sifted_indices.length, sampleSize: sample_indices.length,
+        errorRate, secure, eveActive: isEveActive, eveProb: eveInterceptProb,
+        intercepted: intercept_count, aliceKey, bobKey, keyMismatches, eveKnown
+      };
+      updateStats(results);
+      updateKey(results);
 
       log("--------------------------------------------------");
       log("Simulation completed.", true);
