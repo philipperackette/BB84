@@ -204,11 +204,47 @@
         margin: 8px 0 0;
       }
     }
+    /* Header with language switch */
+    #page-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-right: 10px;
+    }
+    #lang-switch {
+      display: inline-flex;
+      border: 1px solid #CCC;
+      border-radius: 5px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    #lang-switch button {
+      border: none;
+      background: #FFF;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #555;
+    }
+    #lang-switch button + button {
+      border-left: 1px solid #CCC;
+    }
+    #lang-switch button[aria-pressed="true"] {
+      background: #1E90FF;
+      color: #FFF;
+    }
   </style>
 </head>
 <body>
 
-  <h1>Advanced BB84 Simulator</h1>
+  <header id="page-header">
+    <h1 data-i18n="title">Advanced BB84 Simulator</h1>
+    <div id="lang-switch" role="group" aria-label="Language / Langue">
+      <button type="button" data-lang="fr" lang="fr">FR</button>
+      <button type="button" data-lang="en" lang="en">EN</button>
+    </div>
+  </header>
 
   <div id="main-container">
     
@@ -216,19 +252,19 @@
     <div id="left-panel">
       <!-- Controls -->
       <div id="controls">
-        <label for="nQubits">Number of photons:</label>
+        <label for="nQubits" data-i18n="nPhotons">Number of photons:</label>
         <input type="number" id="nQubits" min="20" max="500" value="50" />
 
         <input type="checkbox" id="eveActive" />
-        <label for="eveActive">Enable Eve</label>
+        <label for="eveActive" data-i18n="enableEve">Enable Eve</label>
 
         <div class="slider-container" id="eveProbContainer" hidden>
-          <label for="eveProb">Interception probability:</label>
+          <label for="eveProb" data-i18n="interceptProb">Interception probability:</label>
           <input type="range" id="eveProb" min="0" max="100" step="5" value="100" />
           <span id="eveProbLabel">100%</span>
         </div>
 
-        <button id="startBtn">Start</button>
+        <button id="startBtn" data-i18n="start">Start</button>
       </div>
 
       <!-- Alice -->
@@ -251,45 +287,261 @@
       <hr />
       <!-- Sifting -->
       <div class="row" id="rowCrible">
-        <div class="row-title">Sifting</div>
+        <div class="row-title" data-i18n="rowSifting">Sifting</div>
         <div class="row-container" id="rowCribleContainer"></div>
       </div>
       <hr />
       <!-- Key -->
       <div class="row" id="rowKey">
-        <div class="row-title">Key</div>
+        <div class="row-title" data-i18n="rowKey">Key</div>
         <div class="row-container" id="rowKeyContainer"></div>
       </div>
       <hr />
 
       <!-- Console / Event Log -->
       <div id="console">
-        <div id="log-label">Console / Event Log:</div>
+        <div id="log-label" data-i18n="logLabel">Console / Event Log:</div>
         <div id="log"></div>
       </div>
     </div>
 
     <!-- Right panel (Statistics, Final Key) -->
     <div id="right-panel">
-      <h2>Statistics</h2>
+      <h2 data-i18n="statsTitle">Statistics</h2>
       <div id="stats"></div>
 
-      <h2>Final Key</h2>
+      <h2 data-i18n="keyTitle">Final Key</h2>
       <div id="finalKey"></div>
 
-      <h2>Legend</h2>
-      <div id="legend">
-        <span class="color-Z">Z</span> basis: <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />
-        <span class="color-X">X</span> basis: <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />
-        Sifting: <span class="color-check">✓</span> / <span class="color-cross">✗</span> = sampled control bit (match / error),
-        0 / 1 = kept for the key, ? = bases differ (discarded)<br />
-        Key: <span class="color-mismatch">underlined red</span> = Bob's bit differs from Alice's
-      </div>
+      <h2 data-i18n="legendTitle">Legend</h2>
+      <div id="legend" data-i18n-html="legend"></div>
     </div>
 
   </div>
 
   <script>
+    /***************************************************
+     * Traductions (FR / EN)
+     ***************************************************/
+    const I18N = {
+      en: {
+        pageTitle: "Advanced BB84 Simulator",
+        title: "Advanced BB84 Simulator",
+        nPhotons: "Number of photons:",
+        enableEve: "Enable Eve",
+        interceptProb: "Interception probability:",
+        start: "Start",
+        rowSifting: "Sifting",
+        rowKey: "Key",
+        logLabel: "Console / Event Log:",
+        statsTitle: "Statistics",
+        keyTitle: "Final Key",
+        legendTitle: "Legend",
+        legend:
+          '<span class="color-Z">Z</span> basis: <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />' +
+          '<span class="color-X">X</span> basis: <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />' +
+          'Sifting: <span class="color-check">✓</span> / <span class="color-cross">✗</span> = sampled control bit (match / error), ' +
+          '0 / 1 = kept for the key, ? = bases differ (discarded)<br />' +
+          'Key: <span class="color-mismatch">underlined red</span> = Bob\'s bit differs from Alice\'s',
+        photon: (p) => `Photon ${p.i}`,
+        badCount: "The number of photons must be between 20 and 500.",
+
+        step1: "Step 1: Alice randomly chooses filters.",
+        aliceFilters: (p) => `   Alice's filters: ${p.list}`,
+        step2: "Step 2: Alice randomly chooses bits.",
+        aliceBits: (p) => `   Alice's bits: ${p.list}`,
+        step3: "Step 3: Alice encodes bits into quantum states.",
+        aliceStates: (p) => `   Alice's quantum states: ${p.list}`,
+        step4: "Step 4: Bob randomly chooses filters.",
+        bobFilters: (p) => `   Bob's filters: ${p.list}`,
+        step5: "Step 5: Eve intercepts photons (if Eve is eavesdropping).",
+        eveProb: (p) => `   Interception probability: ${p.prob}%`,
+        evePhoton: (p) => `   Photon ${p.i}: Eve's basis ${p.basis}` +
+          (p.same ? " (same as Alice)" : " (wrong basis, random result)") +
+          `, measured bit ${p.bit}, re-emitted state ${p.state}`,
+        eveTotal: (p) => `   Total photons intercepted by Eve: ${p.count}`,
+        eveOff: "   Eve is not enabled. No photons intercepted.",
+        step6: "Step 6: Bob measures the received photons.",
+        bobStates: (p) => `   Bob's measured states: ${p.list}`,
+        step7: "Step 7: Alice and Bob publicly compare their filters and keep the common ones.",
+        common: (p) => `   Common indices: ${p.list}`,
+        step8: "Step 8: Selecting a sample to evaluate the error rate.",
+        sampled: (p) => `   Sampled indices: ${p.list}`,
+        noSample: "   Not enough common filters for a significant sample.",
+        step9: "Step 9: Comparing control bits.",
+        ctrlError: (p) => `   Error detected at photon ${p.i}. (Alice=${p.a}, Bob=${p.b})`,
+        ctrlOk: (p) => `   No error at photon ${p.i}. (Alice=${p.a}, Bob=${p.b})`,
+        siftResults: (p) => `   Sifting results: ${p.list}`,
+        step10: "Step 10: Calculating the error rate.",
+        errorRate: (p) => `   Error rate: ${pct(p.rate)} (${p.errors}/${p.sample})`,
+        step11: "Step 11: Assessing the confidence of the connection.",
+        noCtrl: "   No control bits: the channel cannot be checked. Exchange aborted.",
+        abort: () => `   Error rate above ${pct(QBER_THRESHOLD, 0)}: eavesdropping suspected. Exchange aborted.`,
+        secureMsg: "   Acceptable error rate. Connection considered secure.",
+        step12: "Step 12: Generating the secret key.",
+        aliceKey: (p) => `   Alice's key: ${p.key} (${p.len} bits)`,
+        bobKey: (p) => `   Bob's key:   ${p.key} (${p.diff} differing bit(s))`,
+        noKey: "   No key generated.",
+        completed: "Simulation completed.",
+
+        sPhotons: (r) => `Photons generated: ${r.n}`,
+        sSifted: (r) => `Photons kept after sifting: ${r.sifted} (${pct(r.sifted/r.n)})`,
+        sSample: (r) => `Control bits sampled: ${r.sampleSize}`,
+        sQber: (r) => `Measured error rate (QBER): ${pct(r.errorRate)}`,
+        sThreshold: () => `Abort threshold: ${pct(QBER_THRESHOLD)}`,
+        sIntercepted: (r) => `Photons intercepted by Eve: ${r.intercepted} (${pct(r.intercepted/r.n)})`,
+        sExpected: (r) => `Expected QBER caused by Eve: ≈ ${pct(r.eveProb/4)}`,
+        sAccepted: "Error rate acceptable: key accepted.",
+        sRejected: "Error rate too high: eavesdropping suspected, key discarded.",
+
+        kAborted: "No key: the exchange was aborted.",
+        kLength: (r) => `Length: ${r.aliceKey.length} bits`,
+        kAlice: "Alice:",
+        kBob: "Bob:  ",
+        kDiff: (r) => `Bits that differ: ${r.keyMismatches}`,
+        kDiffNote: " (to be fixed by error correction, then privacy amplification)",
+        kEve: (r) => `Key bits Eve knows exactly: ${r.eveKnown} / ${r.aliceKey.length}`
+      },
+
+      fr: {
+        pageTitle: "Simulateur BB84 avancé",
+        title: "Simulateur BB84 avancé",
+        nPhotons: "Nombre de photons :",
+        enableEve: "Activer Eve",
+        interceptProb: "Probabilité d'interception :",
+        start: "Démarrer",
+        rowSifting: "Tamisage",
+        rowKey: "Clé",
+        logLabel: "Console / Journal des événements :",
+        statsTitle: "Statistiques",
+        keyTitle: "Clé finale",
+        legendTitle: "Légende",
+        legend:
+          'Base <span class="color-Z">Z</span> : <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />' +
+          'Base <span class="color-X">X</span> : <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />' +
+          'Tamisage : <span class="color-check">✓</span> / <span class="color-cross">✗</span> = bit de contrôle échantillonné (identique / erreur), ' +
+          '0 / 1 = conservé pour la clé, ? = bases différentes (écarté)<br />' +
+          'Clé : <span class="color-mismatch">rouge souligné</span> = le bit de Bob diffère de celui d\'Alice',
+        photon: (p) => `Photon ${p.i}`,
+        badCount: "Le nombre de photons doit être compris entre 20 et 500.",
+
+        step1: "Étape 1 : Alice choisit ses filtres au hasard.",
+        aliceFilters: (p) => `   Filtres d'Alice : ${p.list}`,
+        step2: "Étape 2 : Alice choisit ses bits au hasard.",
+        aliceBits: (p) => `   Bits d'Alice : ${p.list}`,
+        step3: "Étape 3 : Alice encode ses bits en états quantiques.",
+        aliceStates: (p) => `   États quantiques d'Alice : ${p.list}`,
+        step4: "Étape 4 : Bob choisit ses filtres au hasard.",
+        bobFilters: (p) => `   Filtres de Bob : ${p.list}`,
+        step5: "Étape 5 : Eve intercepte des photons (si elle espionne).",
+        eveProb: (p) => `   Probabilité d'interception : ${p.prob} %`,
+        evePhoton: (p) => `   Photon ${p.i} : base d'Eve ${p.basis}` +
+          (p.same ? " (la même qu'Alice)" : " (mauvaise base, résultat aléatoire)") +
+          `, bit mesuré ${p.bit}, état réémis ${p.state}`,
+        eveTotal: (p) => `   Nombre total de photons interceptés par Eve : ${p.count}`,
+        eveOff: "   Eve n'est pas activée. Aucun photon intercepté.",
+        step6: "Étape 6 : Bob mesure les photons reçus.",
+        bobStates: (p) => `   États mesurés par Bob : ${p.list}`,
+        step7: "Étape 7 : Alice et Bob comparent publiquement leurs filtres et gardent ceux qui coïncident.",
+        common: (p) => `   Indices communs : ${p.list}`,
+        step8: "Étape 8 : Choix d'un échantillon pour estimer le taux d'erreur.",
+        sampled: (p) => `   Indices échantillonnés : ${p.list}`,
+        noSample: "   Pas assez de filtres communs pour un échantillon significatif.",
+        step9: "Étape 9 : Comparaison des bits de contrôle.",
+        ctrlError: (p) => `   Erreur détectée au photon ${p.i}. (Alice=${p.a}, Bob=${p.b})`,
+        ctrlOk: (p) => `   Pas d'erreur au photon ${p.i}. (Alice=${p.a}, Bob=${p.b})`,
+        siftResults: (p) => `   Résultat du tamisage : ${p.list}`,
+        step10: "Étape 10 : Calcul du taux d'erreur.",
+        errorRate: (p) => `   Taux d'erreur : ${pct(p.rate)} (${p.errors}/${p.sample})`,
+        step11: "Étape 11 : Évaluation de la confiance dans la liaison.",
+        noCtrl: "   Aucun bit de contrôle : impossible de vérifier le canal. Échange abandonné.",
+        abort: () => `   Taux d'erreur supérieur à ${pct(QBER_THRESHOLD, 0)} : espionnage suspecté. Échange abandonné.`,
+        secureMsg: "   Taux d'erreur acceptable. Liaison considérée comme sûre.",
+        step12: "Étape 12 : Génération de la clé secrète.",
+        aliceKey: (p) => `   Clé d'Alice : ${p.key} (${p.len} bits)`,
+        bobKey: (p) => `   Clé de Bob :  ${p.key} (${p.diff} bit(s) différent(s))`,
+        noKey: "   Aucune clé générée.",
+        completed: "Simulation terminée.",
+
+        sPhotons: (r) => `Photons générés : ${r.n}`,
+        sSifted: (r) => `Photons conservés après tamisage : ${r.sifted} (${pct(r.sifted/r.n)})`,
+        sSample: (r) => `Bits de contrôle échantillonnés : ${r.sampleSize}`,
+        sQber: (r) => `Taux d'erreur mesuré (QBER) : ${pct(r.errorRate)}`,
+        sThreshold: () => `Seuil d'abandon : ${pct(QBER_THRESHOLD)}`,
+        sIntercepted: (r) => `Photons interceptés par Eve : ${r.intercepted} (${pct(r.intercepted/r.n)})`,
+        sExpected: (r) => `QBER attendu dû à Eve : ≈ ${pct(r.eveProb/4)}`,
+        sAccepted: "Taux d'erreur acceptable : clé acceptée.",
+        sRejected: "Taux d'erreur trop élevé : espionnage suspecté, clé rejetée.",
+
+        kAborted: "Pas de clé : l'échange a été abandonné.",
+        kLength: (r) => `Longueur : ${r.aliceKey.length} bits`,
+        kAlice: "Alice :",
+        kBob: "Bob :  ",
+        kDiff: (r) => `Bits différents : ${r.keyMismatches}`,
+        kDiffNote: " (à corriger par correction d'erreurs, puis amplification de confidentialité)",
+        kEve: (r) => `Bits de la clé connus exactement par Eve : ${r.eveKnown} / ${r.aliceKey.length}`
+      }
+    };
+
+    const LANG_STORAGE_KEY = "bb84-lang";
+    let currentLang = "en";
+
+    /**
+     * Traduit une clé ; les entrées fonctions reçoivent `params`.
+     */
+    function t(key, params={}) {
+      const entry = I18N[currentLang][key];
+      return typeof entry === "function" ? entry(params) : entry;
+    }
+
+    /**
+     * Formate un pourcentage selon la langue (5.0% / 5,0 %).
+     */
+    function pct(x, digits=1) {
+      const s = (x*100).toFixed(digits);
+      return currentLang === "fr" ? s.replace(".", ",") + " %" : s + "%";
+    }
+
+    function detectLanguage() {
+      try {
+        const saved = localStorage.getItem(LANG_STORAGE_KEY);
+        if(saved && I18N[saved]) return saved;
+      } catch(e) { /* stockage indisponible */ }
+      const nav = (navigator.language || "").toLowerCase();
+      return nav.startsWith("fr") ? "fr" : "en";
+    }
+
+    /**
+     * Change la langue et retraduit tout ce qui est affiché,
+     * y compris le résultat de la dernière simulation.
+     */
+    function setLanguage(lang) {
+      currentLang = lang;
+      try { localStorage.setItem(LANG_STORAGE_KEY, lang); } catch(e) { /* ignoré */ }
+
+      document.documentElement.lang = lang;
+      document.title = t("pageTitle");
+      document.querySelectorAll("[data-i18n]").forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+      });
+      document.querySelectorAll("[data-i18n-html]").forEach(el => {
+        el.innerHTML = t(el.dataset.i18nHtml);
+      });
+      document.querySelectorAll("#lang-switch button").forEach(btn => {
+        btn.setAttribute("aria-pressed", String(btn.dataset.lang === lang));
+      });
+
+      eveProbLabel.textContent = pct(Number(eveProbInput.value) / 100, 0);
+      document.querySelectorAll(".photon-box").forEach(box => {
+        box.title = t("photon", {i: Number(box.dataset.index) + 1});
+      });
+      renderLog();
+      if(lastResults) {
+        updateStats(lastResults);
+        updateKey(lastResults);
+      }
+    }
+
     /***************************************************
      * Configuration Variables and Objects
      ***************************************************/
@@ -330,6 +582,11 @@
     const statsDiv = document.getElementById("stats");
     const finalKeyDiv = document.getElementById("finalKey");
 
+    // Journal stocké sous forme de clés de traduction, pour pouvoir le
+    // réafficher dans l'autre langue ; résultats de la dernière simulation.
+    let logEntries = [];
+    let lastResults = null;
+
     /***************************************************
      * Display Management
      ***************************************************/
@@ -338,28 +595,42 @@
       eveProbContainer.hidden = !eveActiveInput.checked;
     });
     eveProbInput.addEventListener("input", () => {
-      eveProbLabel.textContent = eveProbInput.value + "%";
+      eveProbLabel.textContent = pct(Number(eveProbInput.value) / 100, 0);
     });
 
     /**
-     * Ajoute un message à la zone "Console / Event Log".
-     * @param {string} message 
-     * @param {boolean} separator 
+     * Affiche une entrée du journal à la fin de la console.
      */
-    function insertLog(message, separator=false) {
+    function appendLogLine(entry) {
       // Si c'est un séparateur, ajouter une ligne horizontale
-      if(separator) {
+      if(entry.separator) {
         logDiv.appendChild(document.createElement("hr"));
       }
-
       const line = document.createElement("div");
-      line.textContent = message;
-      // Si le message commence par "Step", le mettre en gras
-      if(message.startsWith("Step")) {
+      line.textContent = entry.key ? t(entry.key, entry.params) : entry.text;
+      // Les titres d'étape sont en gras
+      if(entry.key && entry.key.startsWith("step")) {
         line.classList.add("log-step");
       }
       logDiv.appendChild(line);
+    }
 
+    function renderLog() {
+      logDiv.innerHTML = "";
+      logEntries.forEach(appendLogLine);
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    /**
+     * Ajoute un message traduisible à la zone "Console / Event Log".
+     * @param {string} key Clé de traduction
+     * @param {Object} params Paramètres du message
+     * @param {boolean} separator Ligne horizontale avant le message
+     */
+    function insertLog(key, params={}, separator=false) {
+      const entry = {key, params, separator};
+      logEntries.push(entry);
+      appendLogLine(entry);
       // Auto-scroll vers le bas
       logDiv.scrollTop = logDiv.scrollHeight;
     }
@@ -374,8 +645,11 @@
       rowCribleContainer.innerHTML = "";
       rowKeyContainer.innerHTML    = "";
 
+      logEntries = [];
+      lastResults = null;
       logDiv.innerHTML = "";
-      statsDiv.innerHTML = "";
+      statsDiv.textContent = "";
+      statsDiv.className = "";
       finalKeyDiv.textContent = "";
     }
 
@@ -384,7 +658,7 @@
      * @param {HTMLElement} container L'élément .row-container où les photons sont placés
      * @param {string[]} bases Tableau des bases (par exemple, ["Z","X","Z",...])
      * @param {string[]} states Tableau des états (par exemple, ["↑","↘","✗","✓","0","1","?",...])
-     * @param {number[]} highlightIndices Indices dont la base doit être en gras
+     * @param {Set<number>} highlightIndices Indices dont la base doit être en gras
      * @param {Object<number,string>} stateClasses Classe CSS imposée pour l'état de certains indices
      */
     function updateRow(container, bases, states, highlightIndices=null, stateClasses=null) {
@@ -401,7 +675,8 @@
 
         const photonBox = document.createElement("div");
         photonBox.classList.add("photon-box");
-        photonBox.title = `Photon ${i+1}`;
+        photonBox.dataset.index = i;
+        photonBox.title = t("photon", {i: i+1});
 
         const basisLabel = document.createElement("div");
         basisLabel.classList.add("basis-label");
@@ -429,24 +704,17 @@
      * @param {Object} r Résultats de la simulation
      */
     function updateStats(r) {
-      const pct = (x) => (x*100).toFixed(1) + "%";
       const lines = [
-        `Photons generated: ${r.n}`,
-        `Photons kept after sifting: ${r.sifted} (${pct(r.sifted/r.n)})`,
-        `Control bits sampled: ${r.sampleSize}`,
-        `Measured error rate (QBER): ${pct(r.errorRate)}`,
-        `Abort threshold: ${pct(QBER_THRESHOLD)}`
+        t("sPhotons", r),
+        t("sSifted", r),
+        t("sSample", r),
+        t("sQber", r),
+        t("sThreshold")
       ];
       if(r.eveActive) {
-        lines.push(
-          "",
-          `Photons intercepted by Eve: ${r.intercepted} (${pct(r.intercepted/r.n)})`,
-          `Expected QBER caused by Eve: ≈ ${pct(r.eveProb/4)}`
-        );
+        lines.push("", t("sIntercepted", r), t("sExpected", r));
       }
-      lines.push("", r.secure
-        ? "Error rate acceptable: key accepted."
-        : "Error rate too high: eavesdropping suspected, key discarded.");
+      lines.push("", t(r.secure ? "sAccepted" : "sRejected"));
 
       statsDiv.textContent = lines.join("\n");
       statsDiv.className = r.secure ? "stats-ok" : "stats-alert";
@@ -458,19 +726,19 @@
      */
     function updateKey(r) {
       if(!r.secure) {
-        finalKeyDiv.textContent = "No key: the exchange was aborted.";
+        finalKeyDiv.textContent = t("kAborted");
         return;
       }
       let text =
-        `Length: ${r.aliceKey.length} bits\n\n` +
-        `Alice: ${r.aliceKey.join("")}\n` +
-        `Bob:   ${r.bobKey.join("")}\n\n` +
-        `Bits that differ: ${r.keyMismatches}`;
+        t("kLength", r) + "\n\n" +
+        t("kAlice") + " " + r.aliceKey.join("") + "\n" +
+        t("kBob") + " " + r.bobKey.join("") + "\n\n" +
+        t("kDiff", r);
       if(r.keyMismatches > 0) {
-        text += " (to be fixed by error correction, then privacy amplification)";
+        text += t("kDiffNote");
       }
       if(r.eveActive) {
-        text += `\nKey bits Eve knows exactly: ${r.eveKnown} / ${r.aliceKey.length}`;
+        text += "\n" + t("kEve", r);
       }
       finalKeyDiv.textContent = text;
     }
@@ -550,7 +818,7 @@
       // Récupère le nombre de photons
       let n = parseInt(nQubitsInput.value, 10);
       if(isNaN(n) || n < 20 || n > 500) {
-        alert("Le nombre de photons doit être compris entre 20 et 500.");
+        alert(t("badCount"));
         return;
       }
 
@@ -558,32 +826,34 @@
       clearDisplay();
 
       const log = insertLog;
+      const list = (arr) => ({list: arr.join(", ")});
+      const oneBased = (arr) => arr.map(i => i+1);
 
       const isEveActive = eveActiveInput.checked;
       const eveInterceptProb = isEveActive ? Number(eveProbInput.value) / 100 : 0;
 
       // Step 1: Alice choisit aléatoirement des filtres
-      log("Step 1: Alice randomly chooses filters.", true);
+      log("step1", {}, true);
       const alice_bases = Array.from({length: n}, randomBasis);
-      log("   Alice's filters: " + alice_bases.join(", "));
+      log("aliceFilters", list(alice_bases));
 
       // Step 2: Alice choisit aléatoirement des bits
-      log("Step 2: Alice randomly chooses bits.");
+      log("step2");
       const alice_bits = Array.from({length: n}, randomBit);
-      log("   Alice's bits: " + alice_bits.join(", "));
+      log("aliceBits", list(alice_bits));
 
       // Step 3: Alice encode et envoie les photons
-      log("Step 3: Alice encodes bits into quantum states.");
+      log("step3");
       const alice_states = alice_bits.map((bit, i) => POLARIZATIONS[alice_bases[i] + bit]);
-      log("   Alice's quantum states: " + alice_states.join(", "));
+      log("aliceStates", list(alice_states));
 
       // Step 4: Bob choisit aléatoirement des filtres
-      log("Step 4: Bob randomly chooses filters.");
+      log("step4");
       const bob_bases = Array.from({length: n}, randomBasis);
-      log("   Bob's filters: " + bob_bases.join(", "));
+      log("bobFilters", list(bob_bases));
 
       // Step 5: Eve peut intercepter les photons (intercept-resend)
-      log("Step 5: Eve intercepts photons (if Eve is eavesdropping).");
+      log("step5");
       const received_bases = alice_bases.slice();
       const received_states = alice_states.slice();
 
@@ -594,7 +864,7 @@
       let intercept_count = 0;
 
       if(isEveActive) {
-        log(`   Interception probability: ${Math.round(eveInterceptProb*100)}%`);
+        log("eveProb", {prob: Math.round(eveInterceptProb*100)});
         for(let i=0; i<n; i++) {
           if(Math.random() >= eveInterceptProb) continue;
           intercept_count++;
@@ -609,28 +879,27 @@
           eve_bits[i] = eve_bit;
           eve_states[i] = eve_state;
 
-          log(`   Photon ${i+1}: Eve's basis ${eve_basis}` +
-              (eve_basis === alice_bases[i] ? " (same as Alice)" : " (wrong basis, random result)") +
-              `, measured bit ${eve_bit}, re-emitted state ${eve_state}`);
+          log("evePhoton", {i: i+1, basis: eve_basis, same: eve_basis === alice_bases[i],
+                            bit: eve_bit, state: eve_state});
 
           // Bob reçoit le photon réémis par Eve
           received_bases[i] = eve_basis;
           received_states[i] = eve_state;
         }
-        log(`   Total photons intercepted by Eve: ${intercept_count}`);
+        log("eveTotal", {count: intercept_count});
       } else {
-        log("   Eve is not enabled. No photons intercepted.");
+        log("eveOff");
       }
       updateRow(rowEveContainer, isEveActive ? eve_bases : [], eve_states);
 
       // Step 6: Bob mesure les photons reçus avec ses filtres
-      log("Step 6: Bob measures the received photons.");
+      log("step6");
       const bob_bits = bob_bases.map((basis, i) => measure(received_states[i], received_bases[i], basis));
       const bob_states = bob_bits.map((bit, i) => POLARIZATIONS[bob_bases[i] + bit]);
-      log("   Bob's measured states: " + bob_states.join(", "));
+      log("bobStates", list(bob_states));
 
       // Step 7: Découverte des filtres communs (échange public des bases)
-      log("Step 7: Alice and Bob publicly compare their filters and keep the common ones.");
+      log("step7");
       const sifted_indices = [];
       for(let i=0; i<n; i++) {
         if(alice_bases[i] === bob_bases[i]) {
@@ -638,26 +907,26 @@
         }
       }
       const siftedSet = new Set(sifted_indices);
-      log("   Common indices: " + sifted_indices.map(i => i+1).join(", "));
+      log("common", list(oneBased(sifted_indices)));
 
       // Mettre en gras les indices communs
       updateRow(rowAliceContainer, alice_bases, alice_states, siftedSet);
       updateRow(rowBobContainer, bob_bases, bob_states, siftedSet);
 
       // Step 8: Sélection d'un échantillon pour tester l'erreur
-      log("Step 8: Selecting a sample to evaluate the error rate.");
+      log("step8");
       const sample_size = Math.max(3, Math.floor(sifted_indices.length / 2));
       let sample_indices = [];
       if(sifted_indices.length >= sample_size) {
         sample_indices = sampleArray(sifted_indices, sample_size).sort((a, b) => a - b);
-        log(`   Sampled indices: ${sample_indices.map(i => i+1).join(", ")}`);
+        log("sampled", list(oneBased(sample_indices)));
       } else {
-        log("   Not enough common filters for a significant sample.");
+        log("noSample");
       }
       const sampleSet = new Set(sample_indices);
 
       // Step 9: Comparaison publique des bits de contrôle
-      log("Step 9: Comparing control bits.");
+      log("step9");
       let error_count = 0;
 
       const sifting_bases  = new Array(n).fill("");
@@ -672,10 +941,10 @@
           if(alice_bit !== bob_bit) {
             sifting_states[i] = "✗";
             error_count++;
-            log(`   Error detected at photon ${i+1}. (Alice=${alice_bit}, Bob=${bob_bit})`);
+            log("ctrlError", {i: i+1, a: alice_bit, b: bob_bit});
           } else {
             sifting_states[i] = "✓";
-            log(`   No error at photon ${i+1}. (Alice=${alice_bit}, Bob=${bob_bit})`);
+            log("ctrlOk", {i: i+1, a: alice_bit, b: bob_bit});
           }
         } else {
           // Bit utile (clé future)
@@ -683,27 +952,27 @@
         }
       }
 
-      log("   Sifting results: " + sifting_states.join(", "));
+      log("siftResults", list(sifting_states));
       updateRow(rowCribleContainer, sifting_bases, sifting_states);
 
       // Step 10: Calcul du taux d'erreur
-      log("Step 10: Calculating the error rate.");
+      log("step10");
       const errorRate = sample_indices.length > 0 ? error_count / sample_indices.length : 0;
-      log(`   Error rate: ${(errorRate*100).toFixed(1)}% (${error_count}/${sample_indices.length})`);
+      log("errorRate", {rate: errorRate, errors: error_count, sample: sample_indices.length});
 
       // Step 11: Évaluation de la confiance de la connexion
-      log("Step 11: Assessing the confidence of the connection.");
+      log("step11");
       const secure = sample_indices.length > 0 && errorRate <= QBER_THRESHOLD;
       if(sample_indices.length === 0) {
-        log("   No control bits: the channel cannot be checked. Exchange aborted.");
+        log("noCtrl");
       } else if(!secure) {
-        log(`   Error rate above ${(QBER_THRESHOLD*100).toFixed(0)}%: eavesdropping suspected. Exchange aborted.`);
+        log("abort");
       } else {
-        log("   Acceptable error rate. Connection considered secure.");
+        log("secureMsg");
       }
 
       // Step 12: Formation de la clé secrète (bits communs non révélés)
-      log("Step 12: Generating the secret key.");
+      log("step12");
       const key_indices = secure ? sifted_indices.filter(i => !sampleSet.has(i)) : [];
       const key_states = new Array(n).fill("");
       const mismatchClasses = {};
@@ -722,32 +991,38 @@
         }
       }
       if(secure) {
-        log(`   Alice's key: ${aliceKey.join("")} (${aliceKey.length} bits)`);
-        log(`   Bob's key:   ${bobKey.join("")} (${keyMismatches} differing bit(s))`);
+        log("aliceKey", {key: aliceKey.join(""), len: aliceKey.length});
+        log("bobKey", {key: bobKey.join(""), diff: keyMismatches});
       } else {
-        log("   No key generated.");
+        log("noKey");
       }
 
       // Met à jour la ligne "Key"
       updateRow(rowKeyContainer, new Array(n).fill(""), key_states, null, mismatchClasses);
 
       // Met à jour les panneaux droits
-      const results = {
+      lastResults = {
         n, sifted: sifted_indices.length, sampleSize: sample_indices.length,
         errorRate, secure, eveActive: isEveActive, eveProb: eveInterceptProb,
         intercepted: intercept_count, aliceKey, bobKey, keyMismatches, eveKnown
       };
-      updateStats(results);
-      updateKey(results);
+      updateStats(lastResults);
+      updateKey(lastResults);
 
-      log("--------------------------------------------------");
-      log("Simulation completed.", true);
+      logEntries.push({text: "--------------------------------------------------"});
+      appendLogLine(logEntries[logEntries.length - 1]);
+      log("completed", {}, true);
     }
 
     /***************************************************
      * Events
      ***************************************************/
     startBtn.addEventListener("click", startSimulation);
+    document.querySelectorAll("#lang-switch button").forEach(btn => {
+      btn.addEventListener("click", () => setLanguage(btn.dataset.lang));
+    });
+
+    setLanguage(detectLanguage());
 
   </script>
 </body>

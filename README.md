@@ -14,6 +14,7 @@ Interactive demonstration of the **BB84 quantum key distribution protocol**, int
 - Optional eavesdropper (Eve, intercept-resend attack) with adjustable interception probability: expected error rate ≈ probability / 4 (25% when every photon is intercepted)
 - The exchange is aborted when the measured error rate exceeds 11%
 - Alice's and Bob's final keys are shown side by side, with differing bits highlighted, along with the share of the key Eve actually knows
+- French / English interface (FR/EN button; the language is remembered, and the current simulation is translated in place)
 
 ### Contents
 
@@ -51,6 +52,7 @@ Démonstrateur interactif du protocole de distribution quantique de clés **BB84
 - Espionne optionnelle (Eve, attaque interception-réémission) avec probabilité d'interception réglable : taux d'erreur attendu ≈ probabilité / 4 (25 % si tous les photons sont interceptés)
 - L'échange est abandonné si le taux d'erreur mesuré dépasse 11 %
 - Les clés finales d'Alice et de Bob sont affichées côte à côte, bits différents mis en évidence, avec la part de la clé réellement connue d'Eve
+- Interface en français / anglais (bouton FR/EN ; la langue est mémorisée et la simulation en cours est traduite sans être relancée)
 
 ### Contenu
 
