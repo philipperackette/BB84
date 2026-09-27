@@ -314,7 +314,11 @@
       <div id="finalKey"></div>
 
       <h2 data-i18n="legendTitle">Legend</h2>
-      <div id="legend" data-i18n-html="legend"></div>
+      <div id="legend">
+        <div data-i18n-html="legend"></div>
+        <!-- Affiché seulement si la clé contient des bits différents -->
+        <div id="legendMismatch" data-i18n-html="legendMismatch" hidden></div>
+      </div>
     </div>
 
   </div>
@@ -341,7 +345,8 @@
           '<span class="color-Z">Z</span> basis: <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />' +
           '<span class="color-X">X</span> basis: <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />' +
           'Sifting: <span class="color-check">✓</span> / <span class="color-cross">✗</span> = sampled control bit (match / error), ' +
-          '0 / 1 = kept for the key, ? = bases differ (discarded)<br />' +
+          '0 / 1 = kept for the key, ? = bases differ (discarded)',
+        legendMismatch:
           'Key: <span class="color-mismatch">underlined red</span> = Bob\'s bit differs from Alice\'s',
         photon: (p) => `Photon ${p.i}`,
         badCount: "The number of photons must be between 20 and 500.",
@@ -420,7 +425,8 @@
           'Base <span class="color-Z">Z</span> : <span class="color-Z">↑</span> = 0, <span class="color-Z">→</span> = 1<br />' +
           'Base <span class="color-X">X</span> : <span class="color-X">↗</span> = 0, <span class="color-X">↘</span> = 1<br />' +
           'Tamisage : <span class="color-check">✓</span> / <span class="color-cross">✗</span> = bit de contrôle échantillonné (identique / erreur), ' +
-          '0 / 1 = conservé pour la clé, ? = bases différentes (écarté)<br />' +
+          '0 / 1 = conservé pour la clé, ? = bases différentes (écarté)',
+        legendMismatch:
           'Clé : <span class="color-mismatch">rouge souligné</span> = le bit de Bob diffère de celui d\'Alice',
         photon: (p) => `Photon ${p.i}`,
         badCount: "Le nombre de photons doit être compris entre 20 et 500.",
@@ -581,6 +587,7 @@
     const logDiv = document.getElementById("log");
     const statsDiv = document.getElementById("stats");
     const finalKeyDiv = document.getElementById("finalKey");
+    const legendMismatchDiv = document.getElementById("legendMismatch");
 
     // Journal stocké sous forme de clés de traduction, pour pouvoir le
     // réafficher dans l'autre langue ; résultats de la dernière simulation.
@@ -651,6 +658,7 @@
       statsDiv.textContent = "";
       statsDiv.className = "";
       finalKeyDiv.textContent = "";
+      legendMismatchDiv.hidden = true;
     }
 
     /**
@@ -725,6 +733,7 @@
      * @param {Object} r Résultats de la simulation
      */
     function updateKey(r) {
+      legendMismatchDiv.hidden = !(r.secure && r.keyMismatches > 0);
       if(!r.secure) {
         finalKeyDiv.textContent = t("kAborted");
         return;
